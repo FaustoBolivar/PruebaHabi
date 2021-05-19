@@ -1,0 +1,285 @@
+install.packages("rjson")
+install.packages("rio")
+install.packages("dplyr")
+install.packages("anytime")
+install.packages("zoo")
+install.packages("xlsx")
+
+rm(list=ls())
+
+library(xlsx)
+library(rjson)
+library(rio)
+library(dplyr)
+library(anytime)
+
+
+
+# Lectura de información
+Inmuebles<-fromJSON(file="C:/Users/Fausto/Documents/technical_test_data_analyst.json")
+
+# Convirtiendo los null en NA
+Inmuebles_sinnull<-lapply(Inmuebles,lapply, function(x)ifelse(is.null(x),NA,x))
+
+
+#coviertiendo a data frame
+Inmuebles_sinnull<-as.data.frame(do.call (cbind, Inmuebles_sinnull))
+
+Data<-as.data.frame(do.call (rbind, Inmuebles_sinnull[,8]))
+
+datos<-Inmuebles_sinnull[,c(1:7,9)]
+
+datos<- lapply(datos, as.numeric)
+datos<- as.data.frame(do.call (cbind, datos))
+
+### arreglando columna activo
+
+datos<-datos%>%mutate(activo=ifelse(activo==1,"activo","no activo"))
+
+### arreglando datos fechas
+
+fechas<- datos%>% select(fecha_inicial,fecha_final)
+fechas<-format(fechas, scientific=F)
+
+fechas$fecha_inicial<-gsub("000","",fechas$fecha_inicial)
+fechas$fecha_inicial<-as.numeric(fechas$fecha_inicial)
+fechas$fecha_inicial<-anytime(fechas$fecha_inicial)
+fechas$fecha_inicial<-gsub('.{9}$',"",fechas$fecha_inicial)
+
+
+fechas$fecha_final<-gsub("000","",fechas$fecha_final)
+fechas$fecha_final<-as.numeric(fechas$fecha_final)
+fechas$fecha_final<-anytime(fechas$fecha_final)
+fechas$fecha_final<-gsub('.{9}$',"",fechas$fecha_final)
+
+datos$fecha_inicial<- fechas$fecha_inicial
+
+datos$fecha_final<- fechas$fecha_final
+
+
+
+### creando columna tipo que caracteriza si es arriendo, venta o ambas 
+datos<-datos%>%mutate(datos,Tipo=ifelse(is.na(valorventa)==FALSE ,"venta",NA))
+datos<-datos%>%mutate(Tipo=ifelse(is.na(valorarriendo)==FALSE ,"arriendo",Tipo ))
+datos<-datos%>%mutate(Tipo=ifelse(is.na(valorventa)==FALSE & is.na(valorarriendo)==FALSE ,"venta y arriendo", Tipo ))
+
+
+### creando columna geodatos caracteriza si tiene datos geograficos 
+datos<-datos%>%mutate(datos,geodatos=ifelse(is.na(latitud)==FALSE & -90<latitud& latitud<90 & is.na(longitud)==FALSE & -180<longitud& longitud<180,"tiene","no tiene" ))
+
+
+### Trabajando los datos de la columna Data
+
+Data<-as.data.frame(do.call (rbind, Inmuebles_sinnull[,8]))
+Data$V1<-gsub(" ", "",Data$V1)
+
+df<-cSplit(Data, "V1", sep=",'")
+
+###########
+
+
+for(i in 1:dim(df)[2])
+{
+  new_df<-df %>% select(i)
+  new_df<-data.frame(lapply(new_df[,1], as.character), stringsAsFactors=FALSE)
+  new_df<-cSplit(new_df, names(new_df), sep=":")
+  new_df<-data.frame(lapply(new_df, as.character), stringsAsFactors=FALSE)
+  new_df<-as.data.frame(new_df[,1])
+  new_df[,1]<-gsub("\\{", "",new_df[,1])
+  new_df[,1]<-gsub("\\'", "",new_df[,1])
+  
+  if(i==1)
+  {revision<-distinct(new_df, new_df[,1])
+  revision<-data.frame(lapply(revision, as.character), stringsAsFactors=FALSE)
+  names(revision)<-"revision"
+  }
+  
+  if(i>1)
+  {revision2<-distinct(new_df, new_df[,1])
+  revision2<-data.frame(lapply(revision2, as.character), stringsAsFactors=FALSE)
+  names(revision2)<-"revision"
+  revision<-rbind(revision,revision2)
+  }
+  
+}
+
+
+revision<-revision %>% filter(is.na(revision)==FALSE)
+revision<-distinct(revision)
+
+
+###########
+nombre<-as.vector(revision[,1])
+prueba<-matrix(0,nrow = dim(Data)[1],ncol = n)
+prueba<-as.data.frame(prueba)
+names(prueba)<-nombre
+
+
+for(i in 1:dim(df)[2])
+{
+  new_df<-df %>% select(i)
+  new_df<-data.frame(lapply(new_df[,1], as.character), stringsAsFactors=FALSE)
+  new_df<-cSplit(new_df, names(new_df), sep=":")
+  new_df<-data.frame(lapply(new_df, as.character), stringsAsFactors=FALSE)
+  
+  if(dim(new_df)[2]>2)
+  {new_df[,2]<-paste(new_df[,2],new_df[,3],sep=":")}
+  
+  new_df[,2]<-gsub(":NA", "",new_df[,2])
+  new_df<-cbind(new_df[,1],new_df[,2])
+  new_df[,1]<-gsub("\\{", "",new_df[,1])
+  new_df[,1]<-gsub("\\'", "",new_df[,1])
+  new_df<-as.data.frame(new_df)
+  new_df$New_ID<-seq.int(nrow(new_df))
+  
+  n<-as.numeric(dim(revision)[1])
+  
+  Final<-cbind(new_df,prueba)
+  
+  for(j in 1:dim(Data)[1])
+  {  
+    for(h in 1:n)
+    {
+      if(Final[j,1]==revision[h,1] & is.na(Final[j,2])==FALSE){Final[j,h+3]=Final[j,2]}
+    }
+  }
+  
+  prueba<-Final[,c(-1,-2,-3)]
+  
+  
+}
+
+
+#### completando datos valor  venta y arriendo
+
+valores<-prueba%>%select(valorventa,valorarriendo)
+valores<-data.frame(lapply(valores, function(x) gsub("\\'"," ",x) ))
+valores<-data.frame(lapply(valores, function(x) gsub("\\$"," ",x) ))
+valores$valorventa<-as.numeric(valores$valorventa)
+valores$valorarriendo<-as.numeric(valores$valorarriendo)
+
+
+valores1<-datos%>%select(valorventa,valorarriendo)
+valores<-rename(valores, valorventa1=valorventa, valorarriendo1=valorarriendo)
+
+Totalvalores<-cbind(valores,valores1)
+Totalvalores<-Totalvalores%>%mutate(valorventa=ifelse(is.na(valorventa1)==FALSE & valorventa1>100000000,valorventa1,ifelse(is.na(valorventa)==FALSE & valorventa>100000000,valorventa,NA)))
+Totalvalores<-Totalvalores%>%mutate(valorarriendo=ifelse(is.na(valorarriendo1)==FALSE & valorarriendo1>300000,valorarriendo1,ifelse(is.na(valorarriendo)==FALSE & valorarriendo>300000,valorarriendo,NA)))
+Totalvalores<-lapply(Totalvalores,as.numeric )
+Totalvalores<-as.data.frame(Totalvalores)
+
+datos$valorventa<-as.numeric(Totalvalores$valorventa)
+datos$valorarriendo<-as.numeric(Totalvalores$valorarriendo)
+
+### creando columna ciudad
+
+Ubicacion<-prueba%>%select(city,ciudad,locacion)
+Ubicacion<-data.frame(lapply(Ubicacion, function(x) gsub("\\'"," ",x) ))
+Ubicacion<-data.frame(lapply(Ubicacion, function(x) gsub("0",NA,x) ))
+
+
+Ubicacion<-Ubicacion%>%mutate(Ubicacion, Ciudad=ifelse(is.na(city)==TRUE,ciudad,city))
+Ubicacion<-Ubicacion%>%mutate(Ciudad=ifelse(is.na(locacion)==TRUE,Ciudad," Bogotá"))
+Ciudad<-Ubicacion %>%select(Ciudad)
+
+Ciudad<-data.frame(lapply(Ciudad, function(x) gsub("D.C."," ",x) ))
+Ciudad<-data.frame(lapply(Ciudad, function(x) gsub("deIndias "," ",x) ))
+Ciudad<-data.frame(lapply(Ciudad, function(x) gsub("Itagui","Itagüí",x) ))
+Ciudad<-data.frame(lapply(Ciudad, function(x) gsub("Jamundi","Jamundí",x) ))
+
+
+
+
+
+
+
+datos<-cbind(datos,Ciudad)
+
+### completando y depurando  datos longitud y latitud
+
+geo<-prueba%>%select(latitud,latitude,lat,longitud,longitude,lon)
+geo<-data.frame(lapply(geo, function(x) gsub("\\'"," ",x) ))
+geo<-data.frame(lapply(geo, function(x) gsub("\\}"," ",x) ))
+geo<-lapply(geo,as.numeric )
+geo<-as.data.frame(geo)
+geo<-rename(geo,longitud1=longitud, latitud1=latitud)
+geo1<-datos%>%select(latitud,longitud)
+geo<-cbind(geo,geo1)
+geo<-as.data.frame(geo)
+geo<-geo%>%mutate(geo,Longitud=ifelse(longitud1< -60.848333333333336 & longitud1>-79.0425, longitud1 , ifelse(longitude< -60.848333333333336 & longitude> -79.0425,longitude,ifelse(lon< -60.848333333333336 & lon> -79.0425,lon,ifelse(longitud< -60.848333333333336 & longitud > -79.0425,longitud,NA)))))
+geo<-geo%>%mutate(geo,Latitud=ifelse(latitud1< 12.4461111 & latitud1>-4.2083333, latitud1 , ifelse(latitud< 12.4461111 & latitud> -4.2083333,latitud,ifelse(latitude< 12.4461111 & latitude> -4.2083333,latitude,NA))))
+geo<-geo%>%select(Latitud,Longitud)
+geo<-geo%>%mutate(Latitud=ifelse(is.na(Longitud)==FALSE, Latitud, NA))
+geo<-geo%>%mutate(Longitud=ifelse(is.na(Latitud)==FALSE, Longitud, NA))
+
+
+datos<-cbind(datos,geo)
+
+datos<-datos%>%mutate(Latitud=ifelse(Latitud==0,latitud,Latitud))
+
+
+
+### creando columna estrato
+
+estrato<-prueba%>%select(estrato)
+estrato<-data.frame(lapply(estrato, function(x) gsub("\\'"," ",x) ))
+estrato<-data.frame(lapply(estrato, function(x) gsub(" ",NA,x) ))
+estrato<-data.frame(lapply(estrato, function(x) gsub("None",NA,x) ))
+estrato<-data.frame(lapply(estrato, function(x) gsub("0",NA,x) ))
+
+estrato<-lapply(estrato,as.numeric )
+estrato<-as.data.frame(estrato)
+
+datos<-cbind(datos,estrato)
+
+### creando columna numero habitaciones y  numero baños
+
+N_habitaciones<-prueba%>%select(rooms,characteristics,habitaciones)
+N_habitaciones<-data.frame(lapply(N_habitaciones, function(x) gsub("\\'"," ",x) ))
+N_habitaciones<-data.frame(lapply(N_habitaciones, function(x) gsub("\\["," ",x) ))
+N_habitaciones<-data.frame(lapply(N_habitaciones, function(x) gsub("hab"," ",x) ))
+N_habitaciones<-data.frame(lapply(N_habitaciones, function(x) gsub("Hab"," ",x) ))
+N_habitaciones<-lapply(N_habitaciones,as.numeric )
+N_habitaciones<-as.data.frame(N_habitaciones)
+N_habitaciones<-N_habitaciones%>%mutate(N_habitaciones,n_hab=ifelse(is.na(rooms)==FALSE & rooms>0,rooms,ifelse(is.na(characteristics)==FALSE & characteristics>0,characteristics,ifelse(is.na(habitaciones)==FALSE & habitaciones>0,habitaciones, " "))))
+N_habitaciones<-N_habitaciones%>%select(n_hab)
+N_habitaciones<-as.data.frame(N_habitaciones)
+N_habitaciones<-data.frame(lapply(N_habitaciones, function(x) gsub(" ",NA,x) ))
+
+
+N_banos<-prueba%>%select(bathroom,bathrooms,banos,numbanos,num_banos)
+N_banos<-data.frame(lapply(N_banos, function(x) gsub("\\'"," ",x) ))
+N_banos<-data.frame(lapply(N_banos, function(x) gsub("\\}"," ",x) ))
+N_banos<-lapply(N_banos,as.integer )
+N_banos<-as.data.frame(N_banos)
+N_banos<-N_banos%>%mutate(N_banos,n_banos=ifelse(is.na(bathroom)==FALSE & bathroom>0,bathroom,ifelse(is.na(bathrooms)==FALSE & bathrooms>0,bathrooms,ifelse(is.na(banos)==FALSE & banos>0 ,banos, ifelse(is.na(numbanos)==FALSE & numbanos>0,numbanos,ifelse(is.na(num_banos)==FALSE & num_banos>0,num_banos,NA))))))
+N_banos<-N_banos%>%select(n_banos)
+N_banos<-as.data.frame(N_banos)
+N_banos<-data.frame(lapply(N_banos, function(x) gsub(" ",NA,x) ))
+
+
+datos<-cbind(datos,N_habitaciones,N_banos)
+datos1<-datos%>%select(id,activo,fecha_inicial,fecha_final,valorventa,valorarriendo,Tipo,n_hab,n_banos,Latitud,Longitud,Ciudad,estrato,geodatos)
+
+### creando columna tipo que caracteriza si es arriendo, venta o ambas 
+datos1<-datos1%>%mutate(Tipo=ifelse(is.na(valorventa)==FALSE ,"venta",NA))
+datos1<-datos1%>%mutate(Tipo=ifelse(is.na(valorarriendo)==FALSE,"arriendo",Tipo ))
+datos1<-datos1%>%mutate(Tipo=ifelse(is.na(valorventa)==FALSE & is.na(valorarriendo)==FALSE,"venta y arriendo", Tipo ))
+
+
+### creando columna geodatos caracteriza si tiene datos geograficos 
+datos1<-datos1%>%mutate(geodatos=ifelse(is.na(Latitud)==FALSE & is.na(Longitud)==FALSE ,"tiene","no tiene" ))
+
+
+write.table(datos, file = "C:/Users/Fausto/Documents/trabajo de datos/datosfinal.txt", sep = "|" ,row.names = FALSE, col.names = TRUE)
+
+write.table(datos1, file = "C:/Users/Fausto/Documents/trabajo de datos/datosfinal1.txt", sep = "|" ,row.names = FALSE, col.names = TRUE)
+
+
+
+
+informe_datos<-datos%>%group_by(Tipo,geodatos)%>%count(Tipo,geodatos)
+informe_datos1<-datos1%>%group_by(Tipo,geodatos)%>%count(Tipo,geodatos)%>%rename(Tipo1=Tipo,geodatos1=geodatos,n1=n)
+
+informe<-cbind.data.frame(informe_datos,informe_datos1)
+write.xlsx (informe, "C:/Users/Fausto/Documents/trabajo de datos/informe.xlsx")
