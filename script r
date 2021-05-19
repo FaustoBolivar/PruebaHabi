@@ -271,7 +271,6 @@ datos1<-datos1%>%mutate(Tipo=ifelse(is.na(valorventa)==FALSE & is.na(valorarrien
 datos1<-datos1%>%mutate(geodatos=ifelse(is.na(Latitud)==FALSE & is.na(Longitud)==FALSE ,"tiene","no tiene" ))
 
 
-write.table(datos, file = "C:/Users/Fausto/Documents/trabajo de datos/datosfinal.txt", sep = "|" ,row.names = FALSE, col.names = TRUE)
 
 write.table(datos1, file = "C:/Users/Fausto/Documents/trabajo de datos/datosfinal1.txt", sep = "|" ,row.names = FALSE, col.names = TRUE)
 
