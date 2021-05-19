@@ -1,5 +1,11 @@
 # PruebaHabi
 
+Los archivos Model.png y Model.sql incluido con el cuerpo de este readme hacen referencia al primer punto de  la prueba.</br> 
+
+El archivo reporte vivienda.pbix contien el reporte en Power Bi de los datos depurados encontrados en el archivo technical_test_data_analyst.json. reporte vivienda.pdf contiene a forma de resumen el trabajo que se le realizo a los datos en R, por ultimo script r  contiene el script que se realizo para depurar y trabajar los datos en Power Bi.</br>
+
+A continuacion se presentan las consultas y  las instrucciones en SQL 
+
 a) Indicar el nombre de los medicamentos consumidos durante el 2019 de mayor precio unitario (o
 sea el precio unitario más alto).</br>
 
