@@ -28,7 +28,7 @@ localidad.</br>
 
 RESPUESTA:</br>
 
-a) a continuación se presentan los 10 medicamentos con mayor precio unitario</br>
+a) se presentan los 10 medicamentos con mayor precio unitario</br>
 
 SELECT NOMBREMEDICAMENTO
 FROM(SELECT MD.NOMBREMEDICAMENTO, ROW_NUMBER() OVER(ORDER BY CA.PRECIONUNITARIO DESC) COSTOMAYOR
