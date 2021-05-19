@@ -1,8 +1,15 @@
 # PruebaHabi
 
-Los archivos Model.png y Model.sql incluido con el cuerpo de este readme hacen referencia al primer punto de  la prueba.</br> 
+Los archivos que se encuentra en este repositorio son los siguietes: 
 
-El archivo reporte vivienda.pbix contien el reporte en Power Bi de los datos depurados encontrados en el archivo technical_test_data_analyst.json. reporte vivienda.pdf contiene a forma de resumen el trabajo que se le realizo a los datos en R, por ultimo script r  contiene el script que se realizo para depurar y trabajar los datos en Power Bi.</br>
+- Model.png: Imagen de las tablas de asociados al primer punto.</br> 
+- Model.sql: Codigo ce las tablas asociadas al primer punto.</br> 
+- README.md: Contiene descripcion de los archivos y   las consultas e instrucciones en SQL asociadas al primer punto. </br>
+- reporte vivienda.pbix: Reporte en Power Bi de los datos depurados encontrados en el archivo technical_test_data_analyst.json.</br>
+- reporte vivienda.pdf: Contiene a forma de resumen el trabajo que se le realizo a los datos en R.</br>
+- script r: Contiene el script que se realizo para depurar y trabajar los datos en Power Bi.</br>
+
+ 
 
 A continuacion se presentan las consultas y  las instrucciones en SQL 
 
